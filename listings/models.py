@@ -6,7 +6,11 @@ class Sector(models.Model):
     Represents a major economic sector (e.g., 'Legal Services', 'Healthcare').
     """
     name = models.CharField(max_length=100, unique=True)
-    admins = models.ManyToManyField(User, related_name='sectors', limit_choices_to={'role': 'sector_admin'})
+    admins = models.ManyToManyField(
+        User, 
+        related_name='sectors', 
+        limit_choices_to={'role': 'sector_admin'}
+    )
 
     def __str__(self):
         return self.name
@@ -30,7 +34,11 @@ class ProviderProfile(models.Model):
     """
     Represents a service provider's profile.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, limit_choices_to={'role': 'service_provider'})
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'role': 'service_provider'}
+    )
     business_name = models.CharField(max_length=255, blank=True, null=True)
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT)
     subcategory = models.ForeignKey(Subcategory, on_delete=models.PROTECT)
@@ -41,7 +49,7 @@ class ProviderProfile(models.Model):
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.business_name or self.user.get_full_name()
+        return self.business_name or self.user.get_full_name() or self.user.username
 
 
 class Review(models.Model):
@@ -49,11 +57,15 @@ class Review(models.Model):
     Represents a client review for a service provider.
     """
     provider = models.ForeignKey(ProviderProfile, related_name='reviews', on_delete=models.CASCADE)
-    client = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'client'})
+    client = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'role': 'client'}
+    )
     rating = models.PositiveSmallIntegerField()  # 1-5 rating scale
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    is_approved = models.BooleanField(default=True)  # Moderation flag
+    is_approved = models.BooleanField(default=False)  # Set to False by default for moderation
 
     def __str__(self):
-        return f"Review by {self.client.username} on {self.provider}"
+        return f"Review ({self.rating}/5) by {self.client.username} on {self.provider}"

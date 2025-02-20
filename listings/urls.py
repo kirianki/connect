@@ -5,8 +5,8 @@ from .views import SectorViewSet, SubcategoryViewSet, ProviderProfileViewSet, Re
 router = DefaultRouter()
 router.register(r'sectors', SectorViewSet)
 router.register(r'subcategories', SubcategoryViewSet)
-router.register(r'providers', ProviderProfileViewSet)
-router.register(r'reviews', ReviewViewSet)
+router.register(r'providers', ProviderProfileViewSet, basename='provider')  # Explicit basename
+router.register(r'reviews', ReviewViewSet, basename='review')  # Explicit basename
 
 urlpatterns = [
     path('', include(router.urls)),
