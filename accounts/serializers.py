@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 
 User = get_user_model()
 
@@ -15,22 +16,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     )
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
-    role = serializers.ChoiceField(choices=User.ROLE_CHOICES)
+    role = serializers.ChoiceField(choices=User.Role.choices)
 
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'password', 'password2', 'role', 'first_name', 'last_name')
-
-    def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("This email is already registered.")
-        return value
-
-    def validate_role(self, value):
-        valid_roles = [choice[0] for choice in User.ROLE_CHOICES]
-        if value not in valid_roles:
-            raise serializers.ValidationError("Invalid role.")
-        return value
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -39,15 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        # ✅ Explicitly pass first_name and last_name
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            role=validated_data['role'],
-            first_name=validated_data.get('first_name', ''),  
-            last_name=validated_data.get('last_name', '')  
-        )
+        user = User.objects.create_user(**validated_data)
         return user
 
 
@@ -58,3 +40,39 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'first_name', 'last_name')
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user profile.
+    """
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'email')
+        extra_kwargs = {'email': {'required': False}}
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer for changing user password.
+    """
+    old_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Incorrect old password.")
+        return value
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    """
+    Serializer for password reset.
+    """
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No user found with this email.")
+        return value

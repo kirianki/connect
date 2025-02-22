@@ -3,21 +3,15 @@ from django.db import models
 
 class User(AbstractUser):
     """
-    Custom user model to support different roles.
+    Custom user model with role-based authentication.
     """
-    ROLE_OVERALL_ADMIN = 'overall_admin'
-    ROLE_SECTOR_ADMIN = 'sector_admin'
-    ROLE_SERVICE_PROVIDER = 'service_provider'
-    ROLE_CLIENT = 'client'
+    class Role(models.TextChoices):
+        OVERALL_ADMIN = 'overall_admin', 'Overall Admin'
+        SECTOR_ADMIN = 'sector_admin', 'Sector Admin'
+        SERVICE_PROVIDER = 'service_provider', 'Service Provider'
+        CLIENT = 'client', 'Client'
 
-    ROLE_CHOICES = (
-        (ROLE_OVERALL_ADMIN, 'Overall Admin'),
-        (ROLE_SECTOR_ADMIN, 'Sector Admin'),
-        (ROLE_SERVICE_PROVIDER, 'Service Provider'),
-        (ROLE_CLIENT, 'Client'),
-    )
-
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, db_index=True)
+    role = models.CharField(max_length=20, choices=Role.choices, db_index=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
