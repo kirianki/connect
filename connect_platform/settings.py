@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,8 +42,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'accounts',
+    'channels',
     'listings',
-    'rest_framework_simplejwt',    
+    'rest_framework_simplejwt',
+    'django.contrib.gis',
+     
 ]
 
 MIDDLEWARE = [
@@ -55,6 +59,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+ASGI_APPLICATION = 'connect_platform.routing.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",  # Change to Redis in production
+    },
+}
 
 ROOT_URLCONF = 'connect_platform.urls'
 
@@ -84,10 +96,15 @@ WSGI_APPLICATION = 'connect_platform.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',  # Use the PostGIS backend
+        'NAME': 'myspatialdb',       # Name of your database
+        'USER': 'postgres',          # Database user
+        'PASSWORD': 'password',      # Database password (set this as needed)
+        'HOST': 'localhost',         # Host (or IP address)
+        'PORT': '5432',              # Default PostgreSQL port
     }
 }
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

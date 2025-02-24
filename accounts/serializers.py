@@ -1,22 +1,29 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.tokens import default_token_generator
 
 User = get_user_model()
 
+def validate_email_unique(value):
+    if User.objects.filter(email__iexact=value).exists():
+        raise serializers.ValidationError("This email is already in use.")
+    return value
+
 class RegisterSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration.
+    Serializer for user registration with secure password validation and restricted role selection.
     """
     email = serializers.EmailField(
         required=True,
-        validators=[UniqueValidator(queryset=User.objects.all())]
+        validators=[validate_email_unique]
     )
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
-    role = serializers.ChoiceField(choices=User.Role.choices)
+    # Limit role choices to non-admin roles (for example, allow only service providers and clients to register)
+    role = serializers.ChoiceField(
+        choices=[(role.value, role.label) for role in User.Role 
+                 if role.value in [User.Role.SERVICE_PROVIDER, User.Role.CLIENT]]
+    )
 
     class Meta:
         model = User
@@ -29,28 +36,30 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        user = User.objects.create_user(**validated_data)
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
         return user
-
 
 class UserSerializer(serializers.ModelSerializer):
     """
-    Serializer for retrieving user details.
+    Serializer for retrieving user details with human-friendly role display.
     """
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'role', 'first_name', 'last_name')
-
+        fields = ('id', 'username', 'email', 'role', 'role_display', 'first_name', 'last_name')
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
     """
-    Serializer for updating user profile.
+    Serializer for updating user profile data.
     """
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'email')
         extra_kwargs = {'email': {'required': False}}
-
 
 class ChangePasswordSerializer(serializers.Serializer):
     """
@@ -65,14 +74,19 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("Incorrect old password.")
         return value
 
+    def validate_new_password(self, value):
+        user = self.context['request'].user
+        if user.check_password(value):
+            raise serializers.ValidationError("New password cannot be the same as the old password.")
+        return value
 
 class PasswordResetSerializer(serializers.Serializer):
     """
-    Serializer for password reset.
+    Serializer for password reset request.
     """
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
+        if not User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("No user found with this email.")
         return value
